@@ -1,24 +1,30 @@
 # pigeon.py
 # pigeonbot
-import irc
-import breadcrumbs
+import json         # for config files
+import irc          # irc class
+import breadcrumbs  # functionality modules
 
 # - - - c o n f i g - - -
-HOST = "avarice.wa.us.synirc.net"
-PORT = 6667
-NICK = "pigeon"
-REALNAME = "pigeonbot"
-NICKPASS = "pe3p3w6ew" # leave blank if unregistered
+# HOST = "avarice.wa.us.synirc.net"
+# PORT = 6667
+# NICK = "pigeon"
+# REALNAME = "pigeonbot"
+# NICKPASS = "pe3p3w6ew" # leave blank if unregistered
+# 
+# CHAN = "#site199"
 
-CHAN = "#site199"
+# read config file
+with open("pigeon.conf") as f:
+    conf = json.load(f)
+
 
 # attempt to establish connection
 irc = irc.IRC()
-irc.connect(HOST, PORT)
-irc.intro(NICK, REALNAME, NICKPASS)
+irc.connect(conf["HOST"], conf["PORT"])
+irc.intro(conf["NICK"], conf["REALNAME"], conf["NICKPASS"])
 
 #join channel
-irc.join(CHAN)
+irc.join(conf["CHAN"])
 
 # main loop
 readbuffer = ""
@@ -41,12 +47,12 @@ while 1:
             readbuffer = lines[-1]
 
     except KeyboardInterrupt:
-        irc.part(CHAN)
+        irc.part(conf["CHAN"])
         irc.exit()
         break
 
     except:
-        irc.part(CHAN, "distressed pigeon noises")
+        irc.part(conf["CHAN"], "distressed pigeon noises")
         irc.exit()
         raise
 
