@@ -4,14 +4,6 @@ import json         # for config files
 import irc          # irc class
 import breadcrumbs  # functionality modules
 
-# - - - c o n f i g - - -
-# HOST = "avarice.wa.us.synirc.net"
-# PORT = 6667
-# NICK = "pigeon"
-# REALNAME = "pigeonbot"
-# NICKPASS = "pe3p3w6ew" # leave blank if unregistered
-# 
-# CHAN = "#site199"
 
 # read config file
 with open("pigeon.conf") as f:
