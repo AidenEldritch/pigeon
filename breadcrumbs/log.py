@@ -6,7 +6,8 @@ import datetime
 # usage: log [start [title]|end [#]]
 class log:
     def __init__(self, cmdorig, rpltarg, argstr):
-        self.live_logs = []
+        self.live_logs = {}
+        self.log_index = 0
 
     def logstart(self, title):
         # start new log
@@ -16,7 +17,7 @@ class log:
             title = "untitled"
 
         # generate filename from timestamp & title
-        fname = "log-{}-{}".format(stamp, title)
+        fname = "{}-{}.log".format(stamp, title)
 
         logfile = None
         try:
@@ -24,54 +25,78 @@ class log:
         except:
             return (-1, "failed to open file.")
 
-        self.live_logs.append(logfile)
+
+        # dict indicies are in string format
+        # so that user specifications don't need
+        # to be converted into int every time
+        self.live_logs[str(self.log_index)] = logfile
+        self.log_index += 1
+
         return (1, "started writing log to: " + logfile.name)
 
-    def logend(self, targi):
-        i = 0
-        if not targi:
-            if len(self.live_logs) == 0:
-                return (1, "no open logs")
 
-            elif len(self.live_logs) == 1:
+    def logend(self, targi):
+        endli = [] # list of log indicies to end
+
+        if not targi:
+            if len(self.live_logs) == 1:
                 # if there is only one log open,
                 # .log end ends that one.
-                pass
+                endli.append(next(iter(self.live_logs)))
 
             else:
                 # request elaboration
-                return (1, "which log did you mean? (use \".log list\" to display all logs being written to.)")
+                return (1, "which logfile did you mean? (use \".log list\" to display all logfiles currently open.")
 
         else:
-            # a target is specified
-            # attempt to parse target as number
-            try:
-                i = int(targi)
-            except:
-                # invalid target
-                return (1, "invalid file specified")
+            # target or targets are specified.
+            # try figuring out what they are.
+            targi = targi.split()   # list of arguments
+            if targi[0] == "all":
+                # end everything.
+                for i in self.live_logs:
+                    endli.append(i)
 
-        # attempt to close i
-        if i >= len(self.live_logs):
-            # out of range
-            return (1, "that log does not exist")
-        
-        # i is valid, close log file
-        fname = self.live_logs[i].name
-        self.live_logs[i].close()
-        del self.live_logs[i]
+            else:
+                for i in targi:
+                    endli.append(i)
+                    # append target. Note that i is not necessarily valid -
+                    # will be checked in next stage.
 
-        if len(self.live_logs) > 0:
-            return (1, "log written to " + fname)
-        else:
-            return (0, "log written to " + fname + ". all logs closed.")
+        # attempt to delete each target
+        ended = {}
+        invalid = []
+        for i in endli:
+            if not i in self.live_logs:
+                # attempted to close nonexistent log. ignore.
+                invalid.append(i)
+
+            else:
+                # record that this is ended.
+                ended[i] = self.live_logs[i].name
+                self.live_logs[i].close()
+                del self.live_logs[i]
+
+        # report results:
+        retstr = "ended log(s): "
+        retsig = 1
+        for i in sorted(ended):
+            retstr += i + ":" + ended[i] + " "
+        retstr += "({} total)".format(str(len(ended)))
+
+        if len(self.live_logs) == 0:
+            retstr += " all logs ended."
+            retsig = 0  # if all logs are ended, close the task instance.
+
+        return (retsig, retstr)
+
 
     def loglist(self):
         # list all the running logs
-        retstr = "logs currently being written to: "
+        retstr = "logfiles currently being written to: "
 
-        for i, f in enumerate(self.live_logs):
-            retstr += str(i) + ":" + f.name + " "
+        for i in sorted(self.live_logs):
+            retstr += i + ":" + self.live_logs[i].name + " "
 
         retstr += "({} total)".format(str(len(self.live_logs)))
         return (1, retstr)
@@ -103,13 +128,14 @@ class log:
             # write man page here later and dump it
             return (1, "")
 
+
     def eat(self, prefix, targ, msg):
 
-        for logfile in self.live_logs:
+        for i, f in self.live_logs.items():
             try:
-                logfile.write(msg+"\n")
+                f.write(msg+"\n")
             except:
-                return (-1, "error writing to " + logfile.name)
+                return (-1, "error writing to " + f.name)
 
         # all logs written to, carry on
         return (1, "") 
