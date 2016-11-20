@@ -5,7 +5,7 @@ import datetime
 # log
 # usage: log [start [title]|end [#]]
 class log:
-    def __init__(self, arg):
+    def __init__(self, cmdorig, rpltarg, argstr):
         self.live_logs = []
 
     def logstart(self, title):
@@ -77,25 +77,25 @@ class log:
         return (1, retstr)
 
 
-    def act(self, arg):
+    def act(self, cmdorig, rpltarg, argstr):
         
         # TODO: better arg parsing because if else statements are silly
         # by default, .log just starts a log w/o title.
-        if not arg:
-            arg = "start"
+        if not argstr:
+            argstr = "start"
 
         # trailing is just whatever after the first word
         trailing = ""
-        if arg.find(' ') != -1:
-            arg, trailing = arg.split(None, 1)
+        if argstr.find(' ') != -1:
+            argstr, trailing = argstr.split(None, 1)
 
-        if arg == "start":
+        if argstr == "start":
             return self.logstart(trailing)
 
-        elif arg == "end":
+        elif argstr == "end":
             return self.logend(trailing)
         
-        elif arg == "list":
+        elif argstr == "list":
             return self.loglist()
 
         else:
@@ -113,4 +113,3 @@ class log:
 
         # all logs written to, carry on
         return (1, "") 
-                

@@ -24,8 +24,7 @@ pigeondaem = breadcrumbs.Daemon(irc)
 while 1:
     try:
         # append to readbuffer
-        readbuffer = readbuffer + irc.recv()
-        
+        readbuffer = readbuffer + irc.recvecho() #irc.recv()
         # look for CR-LF, extract individual commands from bitstream
         if readbuffer.find("\r\n") != -1:
             lines = readbuffer.split("\r\n")

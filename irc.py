@@ -11,6 +11,11 @@ class IRC:
     def __init__(self):
         self.socket = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
+        
+        self.outbuffer = ""     # things sent
+
+        self.incomplete = False # flag on whether the client is
+                                # waiting on another half of a msg
 
     def exit(self):
         self.socket.close()
@@ -20,8 +25,11 @@ class IRC:
 
     def send(self, msg, encoding = "utf-8"):
         # wrapper for socket.send, handles encoding
-        self.socket.send((msg + "\r\n").encode(encoding))
-        print(msg)
+        msg = msg + "\r\n"  # note that this modifies the message
+                            # that is returned.
+        self.socket.send((msg).encode(encoding))
+        #print(msg)
+        self.outbuffer += msg
         return msg
 
     def privmsg(self, targ, msg):
@@ -36,12 +44,25 @@ class IRC:
     def recv(self, l = 1024, encoding = "utf-8"):
         # wrapper for socket.recv, handles decoding
         s = self.socket.recv(l).decode(encoding)
-
-        # while we're at it, respond to pings
-        # if s[:4] == "PING":
-        #     self.send("PONG" + s[4:])
-
+        self.incomplete = (s[-2:] != "\r\n")
+        
         return s
+
+    def recvecho(self, l = 1024, encoding = "utf-8"):
+
+        # receive function for use in main loop:
+        # also echoes messages it sent itself.
+        if (not self.incomplete) and self.outbuffer:
+            s = self.outbuffer
+            self.outbuffer = ""
+            return s
+
+        s = self.socket.recv(l).decode(encoding)
+        self.incomplete = (s[-2:] != "\r\n")
+        return s
+
+
+
 
     def parse(self, s):
         # parsing irc message

@@ -6,10 +6,10 @@ import datetime
 # currently a placeholder for testing multiple handlers.
 # TODO: actually write this to be something reasonable
 class time:
-    def __init__(self, arg):
+    def __init__(self, cmdorig, rpltarg, argstr):
         pass
 
-    def act(self, arg):
+    def act(self, cmdorig, rpltarg, argstr):
         return (1, "")
 
     def eat(self, prefix, targ, msg):

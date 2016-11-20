@@ -3,10 +3,10 @@
 
 # poke: throws error(-1) with message "ow"
 class poke:
-    def __init__(self, arg):
+    def __init__(self, cmdorig, rpltarg, argstr):
         pass
     
-    def act(self,arg):
+    def act(self, cmdorig, rpltarg, argstr):
         return (-1, "ow")
 
     def eat(self, prefix, targ, msg):
@@ -14,14 +14,14 @@ class poke:
 
 # poek: responds "ow" to whoever poked it
 class poek:
-    def __init__(self, arg):
+    def __init__(self, cmdorig, rpltarg, argstr):
         pass
 
-    def act(self, arg):
+    def act(self, cmdorig, rpltarg, argstr):
         # use names instead of whole hostmasks
         # prefix = prefix.split('!')[0]
         # return (0, prefix + ": ow.") 
-        return (0, "ow")
+        return (0, cmdorig + ": ow")
 
     def eat(self, prefix, targ, msg):
         return (0, "")
