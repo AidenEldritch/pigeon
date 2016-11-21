@@ -9,5 +9,5 @@ class echo:
     def act(self, cmdorig, rpltarg, argstr):
         return (1, "")
 
-    def eat(self, prefix, targ, msg):
+    def eat(self, msgorig, rpltarg, msg):
         return (0, "")

@@ -1,2 +1,6 @@
+# ignore files
+*.pyc
+*.swp
+
 # config file for testing
 pigeon.conf

@@ -10,10 +10,8 @@ class time:
         pass
 
     def act(self, cmdorig, rpltarg, argstr):
-        return (1, "")
+        timestr = datetime.datetime.utcnow().isoformat() + " (UTC)"
+        return (0, timestr)
 
-    def eat(self, prefix, targ, msg):
-        if msg != "stop":
-            return (1, "tick: " + datetime.datetime.utcnow().isoformat())
-        else:
-            return (0, "stopped.")
+    def eat(self, msgorig, rpltarg, msg):
+        return (0, "")

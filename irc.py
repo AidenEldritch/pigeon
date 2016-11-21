@@ -135,6 +135,7 @@ class IRC:
     def intro(self, nick, realname, nickpass):
 
         self.send("NICK " + nick)
+        self.nick = nick # keep this handy
         self.send("USER {} {} {} :{}".format(nick, nick, nick, realname))
         # specification USER uname hostname servname :realname,
         # practically all but uname and realname are ignored

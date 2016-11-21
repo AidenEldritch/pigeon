@@ -56,6 +56,9 @@ class Daemon:
             rpltarg = targ      # reply target
             cmdorig = prefix    # command origin
 
+            if cmdorig == "": # outgoing PRIVMSGs report no origin, rectify
+                cmdorig = self.irc.nick
+
             # <nick>['!'<user>]['@'<host>]
             # deal only with nicks - strip anything else
             if cmdorig.find('!') != -1:
@@ -66,8 +69,13 @@ class Daemon:
             # check for target, if target does not have channel prefix char,
             # assume PM and send replys to user.
             if targ[0] != '#' and targ[0] != '&':
-                # message wasn't from a channel, PM.
-                rpltarg = cmdorig
+                if cmdorig == self.irc.nick: #outgoing
+                    rpltarg = rpltarg
+                else: # incoming
+                    rpltarg = cmdorig
+
+
+            print("ORIG: {}\nTARG: {}\nMSG:  {}\n\n".format(cmdorig, rpltarg, msg))
 
 
             # - - - i m p e r a t i v e s - - -
@@ -109,7 +117,7 @@ class Daemon:
             to_kill = []
             for taskname, task in self.live_tasks.items():
 
-                ret = task.eat(prefix, targ, msg) #ret is of format (SIGNAL, MSG)
+                ret = task.eat(cmdorig, rpltarg, msg) #ret is of format (SIGNAL, MSG)
 
                 if not self.report(ret, rpltarg):
                     to_kill.append(taskname)

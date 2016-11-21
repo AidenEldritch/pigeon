@@ -6,7 +6,12 @@ class echo:
         pass
 
     def act(self, cmdorig, rpltarg, argstr):
-        return (1, argstr)
+        if argstr[:5] == ".echo":
+            return (0, "congrats u are v clever")
+        elif argstr[0] == ".":
+            return (0, "")
 
-    def eat(self, prefix, targ, msg):
+        return (0, argstr)
+
+    def eat(self, msgorig, rpltarg, msg):
         return (0, "") # this should never run.

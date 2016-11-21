@@ -23,5 +23,5 @@ class poek:
         # return (0, prefix + ": ow.") 
         return (0, cmdorig + ": ow")
 
-    def eat(self, prefix, targ, msg):
+    def eat(self, msgorig, rpltarg, msg):
         return (0, "")
