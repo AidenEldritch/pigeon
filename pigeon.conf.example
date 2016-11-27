@@ -5,4 +5,7 @@
 	"REALNAME": "pigeonbot",
 	"NICKPASS": "leave_blank_if_unregistered"
 	"AUTOJOIN": ["#chan", "nick"]
+
+	"PARTMSG": "parting message sent to chans upon peaceful exit",
+	"BORKMSG": "parting message snet to chans upon fatal error"
 }

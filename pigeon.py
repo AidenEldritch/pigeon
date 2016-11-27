@@ -1,32 +1,55 @@
+import sys
 import irc
-import json
-
+import funnel
+from breadcrumbs import echo
+from breadcrumbs import poke
 # main program
 
+print("STARTING CLIENT...")
 client = irc.IRC()
-print("LOADING CONFIG...")
-with open("pigeon.conf") as conffile:
-    conf = json.load(conffile)
-    client.config(conf)
 
-print("CONNECT...")
+print("LOADING CONFIG...")
+client.fconfig("pigeon.conf")
+
+print("ATTEMPTING TO ESTABLISH CONNECTION...")
 client.connect()
-print("CONNECTION ESTABLISHED.")
 
 print("SENDING CLIENT INFO...")
 client.intro()
-print("WELCOME MESSAGE RECEIVED.")
 
 if client.nickpass:
     print("CLAIMING REGISTERED NICK...")
     client.ns_ident()
-    print("RECOGNISED.")
 
 print("JOINING CHANNELS...")
 client.auto_join()
 
+print("STARTING FUNNEL(MSG HANDLER)...")
+funnel = funnel.Funnel(client, {
+    "echo"  : echo.echo,
+    "poke"  : poke.poke,
+    "poek"  : poke.poek
+    });
+
+print("ENTERING LISTEN LOOP...")
 while 1:
-    msg = client.next_msg()
-    print("ORIG: {}\nTARG: {}\n CMD: {}\nARGS: {}\n TRL: {}\n".format(
-        msg.orig, msg.targ, msg.cmd, msg.args, msg.trl));
-    client.pingpong(msg)
+
+    try:
+        msg = client.next_msg()
+        irc.print_msg(msg)
+
+        client.pingpong(msg)
+
+        # joek
+        if msg.trl == "breadcrumb":
+            client.privmsg(msg.targ, ":>")
+
+        funnel.handle(msg)
+
+    except KeyboardInterrupt:
+        client.graceful_exit(client.partmsg)
+        sys.exit(0)
+
+    except:
+        client.graceful_exit(client.borkmsg)
+        raise

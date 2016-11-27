@@ -1,4 +1,5 @@
 import socket
+import json
 
 # some constants
 IRC_BUFFER_SIZE = 512
@@ -14,22 +15,34 @@ class Msg:
         self.args = args
         self.trl = trl
 
+# pretty printing of msg instance
+def print_msg(msg):
+    print("\nORIG: {}\nTARG: {}\n CMD: {}\nARGS: {}\n TRL: {}\n".format(
+        msg.orig, msg.targ, msg.cmd, msg.args, msg.trl))
+
 # irc client class
 class IRC:
     def __init__(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
+        # host & ident info
         self.host = ""
         self.port = 6667
         self.nick = "pigeon"
         self.realname = "pigeonbot"
-        self.nickpass = "pfffrbft"
+        self.nickpass = ""
 
+        # juggling channels
         self.chanlist = []
         self.autochan = []
 
+        # read and write buffers
         self.rbuff = ""
         self.wbuff = ""
+
+        # messages
+        self.partmsg = "annying pigeon noises"
+        self.borkmsg = "distressed pigeon noises"
 
 
     def config(self, conf):
@@ -51,6 +64,18 @@ class IRC:
         if "AUTOJOIN" in conf:
             self.autojoin = conf["AUTOJOIN"]
 
+        if "PARTMSG" in conf:
+            self.partmsg = conf["PARTMSG"]
+
+        if "BORKMSG" in conf:
+            self.borkmsg = conf["BORKMSG"]
+
+
+    def fconfig(self, conffile):
+        with open(conffile, "r") as f:
+            conf = json.load(f)
+            self.config(conf)
+                
     def connect(self):
         self.socket.connect((self.host, self.port))
 
@@ -63,6 +88,9 @@ class IRC:
         self.wbuff += msg
         self.socket.send(msg.encode(IRC_ENCODING))
             
+    def privmsg(self,targ, msg):
+        self.send("PRIVMSG {} :{}".format(targ, msg))
+
     def next_msg(self):
         msgbuff = ""
         selfmsg = False
@@ -109,13 +137,15 @@ class IRC:
         if msg.orig.find('@') != -1:
             msg.orig = msg.orig.split('@', 1)[0]
 
-        if len(msg.args) > 0:
-            if msg.args[0][0] == '#'\
-            or msg.args[0][0] == '&'\
-            or msg.args[0] == self.nick:
+        if msg.cmd == "PRIVMSG" and len(msg.args) > 0:
+            # sent to channel.
+            if msg.args[0][0] == '#' or msg.args[0][0] == '&':
                 msg.targ = msg.args[0]
                 msg.args = msg.args[1:]
-
+            # sent by PM
+            elif msg.args[0] == self.nick:
+                msg.targ = msg.orig
+                msg.args = msg.args[1:]
 
         return msg
 
@@ -147,13 +177,29 @@ class IRC:
                                 m.orig == self.nick and \
                                 m.trl.lower() == chan.lower())
         self.chanlist.append(chan)
+    
+    def part(self, chan, msg = None):
+        if msg == None:
+            msg = self.partmsg
+
+        self.send("PART {} :{}".format(chan, msg))
 
     def auto_join(self):
         for i, chan in enumerate(self.autojoin):
             if chan[0] == '#' or chan[0] == '&':
                 self.join(chan)
+                self.chanlist.append(chan)
+                # chanlist doesn't keep track of PMs
             else:
                 self.send("PRIVMSG {} :.".format(chan))
+
+    def graceful_exit(self, msg = None):
+        if msg == None:
+            msg = self.partmsg
+
+        for i, chan in enumerate(self.chanlist):
+            self.part(chan, msg)
+        self.send("QUIT")
 
 
     def pingpong(self, msg):
