@@ -1,160 +1,161 @@
-# irc.py:
-# irc class for pigeonbot
-
 import socket
-import sys
 
-# - - - i r c - c o n s t s - - -
-RPL_WELCOME = "001"
+# some constants
+IRC_BUFFER_SIZE = 512
+IRC_CRLF = "\r\n"
+IRC_ENCODING = "utf-8"
 
+# parsed message class
+class Msg:
+    def __init__(self, orig = "", targ = "", cmd = "", args = [], trl = ""):
+        self.orig = orig
+        self.targ = targ
+        self.cmd = cmd
+        self.args = args
+        self.trl = trl
+
+# irc client class
 class IRC:
     def __init__(self):
-        self.socket = socket.socket(
-                socket.AF_INET, socket.SOCK_STREAM)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
-        self.outbuffer = ""     # things sent
+        self.host = ""
+        self.port = 6667
+        self.nick = "pigeon"
+        self.realname = "pigeonbot"
+        self.nickpass = "pfffrbft"
 
-        self.incomplete = False # flag on whether the client is
-                                # waiting on another half of a msg
+        self.chanlist = []
+        self.autochan = []
 
-    def exit(self):
-        self.socket.close()
+        self.rbuff = ""
+        self.wbuff = ""
 
-    def connect(self, host, port):
-        self.socket.connect((host, port))
 
-    def send(self, msg, encoding = "utf-8"):
-        # wrapper for socket.send, handles encoding
-        msg = msg + "\r\n"  # note that this modifies the message
-                            # that is returned.
-        self.socket.send((msg).encode(encoding))
-        #print(msg)
-        self.outbuffer += msg
+    def config(self, conf):
+        if "HOST" in conf:
+            self.host = conf["HOST"]
+
+        if "PORT" in conf:
+            self.port = conf["PORT"]
+
+        if "NICK" in conf:
+            self.nick = conf["NICK"]
+
+        if "REALNAME" in conf:
+            self.realname = conf["REALNAME"]
+
+        if "NICKPASS" in conf:
+            self.nickpass = conf["NICKPASS"]
+
+        if "AUTOJOIN" in conf:
+            self.autojoin = conf["AUTOJOIN"]
+
+    def connect(self):
+        self.socket.connect((self.host, self.port))
+
+
+    def recv(self):
+        self.rbuff += self.socket.recv(IRC_BUFFER_SIZE).decode(IRC_ENCODING)
+
+    def send(self, msg):
+        msg += "\r\n"
+        self.wbuff += msg
+        self.socket.send(msg.encode(IRC_ENCODING))
+            
+    def next_msg(self):
+        msgbuff = ""
+        selfmsg = False
+        
+        # prioritise sent messages, & drop next line to parse into msgbuff
+        if self.wbuff.find(IRC_CRLF) != -1:
+            (msgbuff, self.wbuff) = self.wbuff.split(IRC_CRLF, 1)
+            selfmsg = True
+        else:
+            while 1:
+                cutoff = self.rbuff.find(IRC_CRLF)
+                if cutoff == -1:
+                    self.recv()
+                else:
+                    break
+            (msgbuff, self.rbuff) = self.rbuff.split(IRC_CRLF, 1)
+            selfmsg = False
+
+        # parse the message.
+        msg = Msg()
+        
+        # prefix and command:
+        if msgbuff[0] == ':':
+            msgbuff = msgbuff[1:]
+            (msg.orig, msg.cmd, msgbuff) = msgbuff.split(None, 2)
+        else:
+            (msg.cmd, msgbuff) = msgbuff.split(None, 1)
+        
+        # trailing
+        if msgbuff.find(':') != -1:
+            (msgbuff, msg.trl) = msgbuff.split(':', 1)
+
+        # arguments
+        msg.args = msgbuff.split(None)
+
+
+        # tag self-originating messages
+        if selfmsg:
+            msg.orig = self.nick
+
+        # deal only with nicks, remove host bit of prefix
+        if msg.orig.find('!') != -1:
+            msg.orig = msg.orig.split('!', 1)[0]
+        if msg.orig.find('@') != -1:
+            msg.orig = msg.orig.split('@', 1)[0]
+
+        if len(msg.args) > 0:
+            if msg.args[0][0] == '#'\
+            or msg.args[0][0] == '&'\
+            or msg.args[0] == self.nick:
+                msg.targ = msg.args[0]
+                msg.args = msg.args[1:]
+
+
         return msg
 
-    def privmsg(self, targ, msg):
-        # wrapper for send to make PRIVMSGs look cleaner
-
-        if not msg:
-            return # just to make the logs cleaner
-
-        msg = "PRIVMSG " + targ + " :" + msg
-        return self.send(msg)
-
-    def recv(self, l = 1024, encoding = "utf-8"):
-        # wrapper for socket.recv, handles decoding
-        s = self.socket.recv(l).decode(encoding)
-        self.incomplete = (s[-2:] != "\r\n")
-        
-        return s
-
-    def recvecho(self, l = 1024, encoding = "utf-8"):
-
-        # receive function for use in main loop:
-        # also echoes messages it sent itself.
-        if (not self.incomplete) and self.outbuffer:
-            s = self.outbuffer
-            self.outbuffer = ""
-            return s
-
-        s = self.socket.recv(l).decode(encoding)
-        self.incomplete = (s[-2:] != "\r\n")
-        return s
-
-
-
-
-    def parse(self, s):
-        # parsing irc message
-
-        p = "" # prefix
-        t = "" # trailing params
-
-        # BNF representation of protocol message (RFC 1459):
-        # <message>  ::= [':' <prefix> <SPACE> ] <command> <params> <crlf>
-        # <prefix>   ::= <servername> | <nick> [ '!' <user> ] [ '@' <host> ]
-        # <command>  ::= <letter> { <letter> } | <number> <number> <number>
-        # <SPACE>    ::= ' ' { ' ' }
-        # <params>   ::= <SPACE> [ ':' <trailing> | <middle> <params> ]
-
-
-        if not s:
-            raise IRCBadMessage("empty line.")
-
-        if s[0] == ':': # obtain prefix if exists
-            (p, s) = s[1:].split(None, 1)
-
-        # obtain args & trailing
-        if s.find(' :') != -1: # if trailing exists, strip & append to command-arg
-            (s, t) = s.split(' :', 1)
-            args = s.split()
-            args.append(t)
-
-        else:
-            args = s.split() # command, followed by all the args
-
-        # extract command
-        cmd = args[0]
-        args = args[1:]
-
-        # print parsed message for debug purposes
-        for i in (p, cmd, args):
-            print(i)
-        print()
-
-        # return formatted message
-        return (p, cmd, args)
-
-
-    def pingpong(self, r):
-        #check if parsed message is a ping, and if it is, pong.
-        if r[1] == "PING":
-            self.send("PONG :" + r[2][0])
-
-    def waitfor(self, cmd, f = lambda r:True):
-        # wait for specific command before proceeding
-        # w/ optional conditional testing for params
-        readbuffer = ""
+    def wait_for(self, condition):
         while 1:
-            readbuffer = readbuffer + self.recv()
-            if readbuffer.find("\r\n") != -1:
-                lines = readbuffer.split("\r\n")
-                for l in lines[:-1]:
-                    r = self.parse(l)
+            msg = self.next_msg()
+            # still respond to pings to prevent timeout
+            self.pingpong(msg)
+            if condition(msg):
+                break
 
-                    # still handle pings
-                    self.pingpong(r)
+    def intro(self):
+        self.send("USER {} {} {} :{}".format(
+            self.nick, self.nick, self.nick, self.realname))
+        self.send("NICK {}".format(self.nick))
 
-                    # check if event waited for has happened
-                    if r[1] == cmd and f(r):
-                        return
+        self.wait_for(lambda m: m.cmd == "001")
 
-                readbuffer = lines[-1]
-
-
-    def intro(self, nick, realname, nickpass):
-
-        self.send("NICK " + nick)
-        self.nick = nick # keep this handy
-        self.send("USER {} {} {} :{}".format(nick, nick, nick, realname))
-        # specification USER uname hostname servname :realname,
-        # practically all but uname and realname are ignored
-
-        # wait for welcome message before sending any further commands
-        self.waitfor(RPL_WELCOME)
-
-        if not nickpass:
-            # do the identify thing
-            self.identify(nickpass)
-            self.waitfor("MODE", lambda r: r[2][1].find("r") != -1)
+    def ns_ident(self, authformat = "PRIVMSG Nickserv :IDENTIFY {}"):
+        self.send(authformat.format(self.nickpass));
+        self.wait_for(lambda m: ( \
+            m.cmd == "MODE" and \
+            m.trl[0] == '+' and \
+            m.trl.find('r') != -1))
 
     def join(self, chan):
         self.send("JOIN " + chan)
+        self.wait_for(lambda m: m.cmd == "JOIN" and \
+                                m.orig == self.nick and \
+                                m.trl.lower() == chan.lower())
+        self.chanlist.append(chan)
 
-    def part(self, chan, msg="annoying pigeon noises"):
-        self.send("PART " + chan + " " + msg)
+    def auto_join(self):
+        for i, chan in enumerate(self.autojoin):
+            if chan[0] == '#' or chan[0] == '&':
+                self.join(chan)
+            else:
+                self.send("PRIVMSG {} :.".format(chan))
 
-    def identify(self, nickpass):
-        self.send("PRIVMSG NICKSERV IDENTIFY " + nickpass)
 
-
+    def pingpong(self, msg):
+        if msg.cmd == "PING":
+            self.send("PONG :"+msg.trl)

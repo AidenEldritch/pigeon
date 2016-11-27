@@ -1,0 +1,8 @@
+{
+	"HOST": "server.hostname.here",
+	"PORT": 6667,
+	"NICK": "pigeon",
+	"REALNAME": "pigeonbot",
+	"NICKPASS": "leave_blank_if_unregistered"
+	"AUTOJOIN": ["#chan", "nick"]
+}

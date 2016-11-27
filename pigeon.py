@@ -1,50 +1,32 @@
-# pigeon.py
-# pigeonbot
-import json         # for config files
-import irc          # irc class
-import breadcrumbs  # functionality modules
+import irc
+import json
 
+# main program
 
-# read config file
-with open("pigeon.conf") as f:
-    conf = json.load(f)
+client = irc.IRC()
+print("LOADING CONFIG...")
+with open("pigeon.conf") as conffile:
+    conf = json.load(conffile)
+    client.config(conf)
 
+print("CONNECT...")
+client.connect()
+print("CONNECTION ESTABLISHED.")
 
-# attempt to establish connection
-irc = irc.IRC()
-irc.connect(conf["HOST"], conf["PORT"])
-irc.intro(conf["NICK"], conf["REALNAME"], conf["NICKPASS"])
+print("SENDING CLIENT INFO...")
+client.intro()
+print("WELCOME MESSAGE RECEIVED.")
 
-#join channel
-irc.join(conf["CHAN"])
+if client.nickpass:
+    print("CLAIMING REGISTERED NICK...")
+    client.ns_ident()
+    print("RECOGNISED.")
 
-# main loop
-readbuffer = ""
-pigeondaem = breadcrumbs.Daemon(irc)
+print("JOINING CHANNELS...")
+client.auto_join()
+
 while 1:
-    try:
-        # append to readbuffer
-        readbuffer = readbuffer + irc.recvecho() #irc.recv()
-        # look for CR-LF, extract individual commands from bitstream
-        if readbuffer.find("\r\n") != -1:
-            lines = readbuffer.split("\r\n")
-
-            for l in lines[:-1]:
-                r = irc.parse(l)    # parse each line & handle accordingly
-                irc.pingpong(r)     # respond to pings while we're at it
-
-                pigeondaem.handle(r)    # hand message over to run things
-
-            readbuffer = lines[-1]
-
-    except KeyboardInterrupt:
-        irc.part(conf["CHAN"])
-        irc.exit()
-        break
-
-    except:
-        irc.part(conf["CHAN"], "distressed pigeon noises")
-        irc.exit()
-        raise
-
-
+    msg = client.next_msg()
+    print("ORIG: {}\nTARG: {}\n CMD: {}\nARGS: {}\n TRL: {}\n".format(
+        msg.orig, msg.targ, msg.cmd, msg.args, msg.trl));
+    client.pingpong(msg)
