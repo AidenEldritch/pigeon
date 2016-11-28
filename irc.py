@@ -1,3 +1,6 @@
+# irc.py
+# an irc client and msg class to abstract away the gibberish
+
 import socket
 import json
 
@@ -5,6 +8,7 @@ import json
 IRC_BUFFER_SIZE = 512
 IRC_CRLF = "\r\n"
 IRC_ENCODING = "utf-8"
+
 
 # parsed message class
 class Msg:
@@ -15,10 +19,12 @@ class Msg:
         self.args = args
         self.trl = trl
 
+
 # pretty printing of msg instance
 def print_msg(msg):
     print("\nORIG: {}\nTARG: {}\n CMD: {}\nARGS: {}\n TRL: {}".format(
         msg.orig, msg.targ, msg.cmd, msg.args, msg.trl))
+
 
 # irc client class
 class IRC:
@@ -45,6 +51,7 @@ class IRC:
         self.borkmsg = "distressed pigeon noises"
 
 
+    # sets parameters from a json object, conf
     def config(self, conf):
         if "HOST" in conf:
             self.host = conf["HOST"]
@@ -70,27 +77,40 @@ class IRC:
         if "BORKMSG" in conf:
             self.borkmsg = conf["BORKMSG"]
 
-
+    # attempts to load conffile as a json object and
+    # calls config with that object
     def fconfig(self, conffile):
         with open(conffile, "r") as f:
             conf = json.load(f)
             self.config(conf)
                 
+
+    # connects to host
     def connect(self):
         self.socket.connect((self.host, self.port))
 
 
+    # retrieves bytes from socket into readbuffer
     def recv(self):
         self.rbuff += self.socket.recv(IRC_BUFFER_SIZE).decode(IRC_ENCODING)
 
+
+    # sends bytes into socket and also pushes sent
+    # message into writebuffer for self-message handling
     def send(self, msg):
         msg += "\r\n"
         self.wbuff += msg
         self.socket.send(msg.encode(IRC_ENCODING))
             
+
+    # shorthand PRIVMSG
     def privmsg(self,targ, msg):
         self.send("PRIVMSG {} :{}".format(targ, msg))
 
+
+    # gets the next available line (CRLF delimited) and parses it,
+    # returning an Msg object. This function called recv() if no new
+    # lines are available.
     def next_msg(self):
         msgbuff = ""
         selfmsg = False
@@ -150,6 +170,8 @@ class IRC:
 
         return msg
 
+
+    # swallows messages until condition(msg) is met.
     def wait_for(self, condition):
         while 1:
             msg = self.next_msg()
@@ -158,6 +180,8 @@ class IRC:
             if condition(msg):
                 break
 
+
+    # sends USER and NICK messages
     def intro(self):
         self.send("USER {} {} {} :{}".format(
             self.nick, self.nick, self.nick, self.realname))
@@ -165,6 +189,8 @@ class IRC:
 
         self.wait_for(lambda m: m.cmd == "001")
 
+
+    # claims registered nick from nickserv
     def ns_ident(self, authformat = "PRIVMSG Nickserv :IDENTIFY {}"):
         self.send(authformat.format(self.nickpass));
         self.wait_for(lambda m: ( \
@@ -172,6 +198,8 @@ class IRC:
             m.trl[0] == '+' and \
             m.trl.find('r') != -1))
 
+
+    # join channel chan
     def join(self, chan):
         self.send("JOIN " + chan)
         self.wait_for(lambda m: m.cmd == "JOIN" and \
@@ -179,12 +207,17 @@ class IRC:
                                 m.trl.lower() == chan.lower())
         self.chanlist.append(chan)
     
+    
+    # part channel chan
     def part(self, chan, msg = None):
         if msg == None:
             msg = self.partmsg
 
         self.send("PART {} :{}".format(chan, msg))
+        # TODO: wait for PART msg and remove from chanlist
 
+
+    # join all channels that are in autojoin list
     def auto_join(self):
         for i, chan in enumerate(self.autojoin):
             if chan[0] == '#' or chan[0] == '&':
@@ -194,6 +227,9 @@ class IRC:
             else:
                 self.send("PRIVMSG {} :.".format(chan))
 
+
+    # parts all joined channels and leaves the server.
+    # to be called before any exit.
     def graceful_exit(self, msg = None):
         if msg == None:
             msg = self.partmsg
@@ -203,6 +239,7 @@ class IRC:
         self.send("QUIT")
 
 
+    # PONGs if msg is a PING
     def pingpong(self, msg):
         if msg.cmd == "PING":
             self.send("PONG :"+msg.trl)

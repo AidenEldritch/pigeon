@@ -19,6 +19,8 @@ class log:
         #                   }
         # }
 
+    # starts a log for channel or PM targ.
+    # TODO: actually care about the title.
     def logstart(self, targ, title):
         # start a log with targ(chan or user).
         timestamp = datetime.datetime.utcnow()\
@@ -46,9 +48,8 @@ class log:
             targ, logfile.name))
 
 
-
+    # sends a ist of all active logs of the current chan
     def loglist(self, targ):
-        # list all logs currently open in the present chan
         if targ in self.chans:
             logliststr = "currently active logs of " + targ + ":"
 
@@ -66,27 +67,11 @@ class log:
             self.client.privmsg(targ, "no active logs of " + targ + " currently exist")
 
 
-    def logends(self, targ, arg):
-        if targ in self.chans:
-            if arg == "all" or len(self.chans[targ]["logs"]) == 1:
-                # close everything.
-                self.logend(targ,  None)
-
-            elif arg:
-                # list provided.
-                # split into individual attempts.
-                l = arg.split(None)
-                self.logend(targ, l)
-
-            else:
-                # ambiguity
-                self.client.privmsg(targ, "which log do you wish to close? use '.log list' to view a list of all currently active logs.")
-        else:
-            # no logs here
-            self.client.privmsg(targ,
-                    "no active logs of {} currently exist".format(targ))
-
-
+    # end logs in a fashion as specified by the string arg:
+    # - if empty, do the most reasonable thing
+    # - if nonempty, attempt to parse as a space-delimited
+    #   series of logs to end, end each existent one, and
+    #   report results.
     def logend(self, targ, arg):
 
         # return if there is nothing to close
