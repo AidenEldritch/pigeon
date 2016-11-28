@@ -17,7 +17,7 @@ class Msg:
 
 # pretty printing of msg instance
 def print_msg(msg):
-    print("\nORIG: {}\nTARG: {}\n CMD: {}\nARGS: {}\n TRL: {}\n".format(
+    print("\nORIG: {}\nTARG: {}\n CMD: {}\nARGS: {}\n TRL: {}".format(
         msg.orig, msg.targ, msg.cmd, msg.args, msg.trl))
 
 # irc client class
@@ -126,11 +126,6 @@ class IRC:
         # arguments
         msg.args = msgbuff.split(None)
 
-
-        # tag self-originating messages
-        if selfmsg:
-            msg.orig = self.nick
-
         # deal only with nicks, remove host bit of prefix
         if msg.orig.find('!') != -1:
             msg.orig = msg.orig.split('!', 1)[0]
@@ -138,8 +133,14 @@ class IRC:
             msg.orig = msg.orig.split('@', 1)[0]
 
         if msg.cmd == "PRIVMSG" and len(msg.args) > 0:
+            # self-originating messages:
+            if selfmsg:
+                msg.orig = self.nick
+                msg.targ = msg.args[0]
+                msg.args = msg.args[1:]
+
             # sent to channel.
-            if msg.args[0][0] == '#' or msg.args[0][0] == '&':
+            elif msg.args[0][0] == '#' or msg.args[0][0] == '&':
                 msg.targ = msg.args[0]
                 msg.args = msg.args[1:]
             # sent by PM

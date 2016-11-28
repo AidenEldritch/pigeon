@@ -3,6 +3,7 @@ import irc
 import funnel
 from breadcrumbs import echo
 from breadcrumbs import poke
+from breadcrumbs import log
 # main program
 
 print("STARTING CLIENT...")
@@ -28,7 +29,8 @@ print("STARTING FUNNEL(MSG HANDLER)...")
 funnel = funnel.Funnel(client, {
     "echo"  : echo.echo,
     "poke"  : poke.poke,
-    "poek"  : poke.poek
+    "poek"  : poke.poek,
+    "log"   : log.log
     });
 
 print("ENTERING LISTEN LOOP...")
@@ -43,6 +45,8 @@ while 1:
         # joek
         if msg.trl == "breadcrumb":
             client.privmsg(msg.targ, ":>")
+        if msg.trl == "borkcrumb":
+            raise ValueError("borked")
 
         funnel.handle(msg)
 

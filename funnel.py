@@ -27,6 +27,7 @@ class Funnel:
         if msg.cmd != "PRIVMSG":
             return
         
+        print("")
         # usual messages
         to_kill = []
         for c, task in self.livetasks.items():
@@ -35,8 +36,8 @@ class Funnel:
 
         # kill all kill-queued tasks
         for i, c in enumerate(to_kill):
-            del self.livetasks[cmd]
-            print(" - ENDED TASK " + cmd)
+            del self.livetasks[c]
+            print(" - ENDED TASK " + c)
 
         # ACTIVATOR_CHAR starts a command
         if msg.trl[0] == self.ACTIVATOR_CHAR:
@@ -51,5 +52,5 @@ class Funnel:
                 if not self.livetasks[cmd].act(msg):
                     del self.livetasks[cmd]
                     print(" - ENDED TASK " + cmd)
-
+        print("")
 

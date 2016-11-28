@@ -7,7 +7,8 @@ class echo:
         self.client = client
 
     def act(self, msg):
-        if msg.trl.find(' ') != -1:
+        s = msg.trl.split(None, 1)
+        if msg.orig != self.client.nick and len(s) > 1:
             self.client.privmsg(msg.targ, msg.trl.split(None, 1)[1])
         return 0
 
